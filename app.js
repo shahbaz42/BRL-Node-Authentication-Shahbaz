@@ -4,6 +4,7 @@ const ejs = require("ejs")
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 require("dotenv").config();  // for using env variables 
+const encrypt = require("mongoose-encryption")  //For encrypting mongodb db
 
 const app = express();
 app.set("view engine", "ejs")
@@ -15,10 +16,15 @@ mongoose.connect(DB).then(() => {
     console.log("Connection Sucessful");
 }).catch((err) => console.log(err));
 
-const userSchema = {
+// We need to update schema our schema cant be just a js object
+const userSchema = new mongoose.Schema ({
     email : String,
     password : String
-}
+});
+
+const mongooseEncryptionSecret = process.env.mongooseEncryptionSecret;
+// for encrypting database 
+userSchema.plugin(encrypt, {secret: mongooseEncryptionSecret, encryptedFields: ["password"]});
 
 const User = new mongoose.model("User", userSchema);
 
