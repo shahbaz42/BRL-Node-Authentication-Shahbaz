@@ -4,7 +4,7 @@ const ejs = require("ejs")
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 require("dotenv").config();  // for using env variables 
-const encrypt = require("mongoose-encryption")  //For encrypting mongodb db
+const md5 = require("md5"); // for hashing password
 
 const app = express();
 app.set("view engine", "ejs")
@@ -21,10 +21,6 @@ const userSchema = new mongoose.Schema ({
     email : String,
     password : String
 });
-
-const mongooseEncryptionSecret = process.env.mongooseEncryptionSecret;
-// for encrypting database 
-userSchema.plugin(encrypt, {secret: mongooseEncryptionSecret, encryptedFields: ["password"]});
 
 const User = new mongoose.model("User", userSchema);
 
@@ -44,7 +40,7 @@ app.get("/register", function(req, res){
 app.post("/register", function(req, res){
     const newUser = new User({
         email : req.body.username,
-        password : req.body.password
+        password : md5(req.body.password)
     })
 
     newUser.save(function(err){
@@ -59,7 +55,7 @@ app.post("/register", function(req, res){
 // Handling login request made at /login
 app.post("/login", function(req, res){
     const username = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);
     //finding username in database
     User.findOne({email: username}, function(err, result){
         if(err){                       // Not finding any records isn't an error condition, we need to handle that separately in else
