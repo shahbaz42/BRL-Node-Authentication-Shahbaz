@@ -4,10 +4,25 @@ const ejs = require("ejs");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 require("dotenv").config(); // for using env variables
-const bcrypt = require("bcrypt"); //for hashing and salting passwords
-const saltRounds = 10;
+const session = require("express-session");
+const passport = require("passport");
+const passportLocalMongoose = require("passport-local-mongoose");
+// we don't neet to require passport-local
 
 const app = express();
+
+app.use(
+  session({
+    //configuring sessions
+    secret: process.env.sessions_Secret,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+app.use(passport.initialize); //initialising passport
+app.use(passport.session()); //making express use passport.sessions
+
 app.set("view engine", "ejs");
 const DB =
   "mongodb+srv://" +
@@ -31,7 +46,13 @@ const userSchema = new mongoose.Schema({
   password: String,
 });
 
+userSchema.plugin(passportLocalMongoose); // will be used for salting hashing passwords
+
 const User = new mongoose.model("User", userSchema);
+
+passport.use(User.createStrategy());
+passport.serializeUser(User.serializeUser()); //for putting info into cookie
+passport.deserializeUser(User.deserializeUser()); //for cracking open cookie to find info
 
 app.get("/", function (req, res) {
   res.send("Monkey");
@@ -46,49 +67,10 @@ app.get("/register", function (req, res) {
 });
 
 //handling register req made at /register
-app.post("/register", function (req, res) {
-  bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
-    //for hashing and salting passwords.
-
-    const newUser = new User({
-      email: req.body.username,
-      password: hash,
-    });
-
-    newUser.save(function (err) {
-      if (err) {
-        console.log(err);
-      } else {
-        res.render("secrets");
-      }
-    });
-  });
-});
+app.post("/register", function (req, res) {});
 
 // Handling login request made at /login
-app.post("/login", function (req, res) {
-  const username = req.body.username;
-  const password = req.body.password;
-  //finding username in database
-  User.findOne({ email: username }, function (err, result) {
-    if (err) {
-      // Not finding any records isn't an error condition, we need to handle that separately in else
-      console.log(err);
-    }
-    if (result) {
-      bcrypt.compare(password, result.password, function (err, result) {
-        //using bcrypt to compare passwords
-        if (result === true) {
-          res.render("secrets");
-        } else {
-          res.send("Incorrect password");
-        }
-      });
-    } else {
-      res.send("Email Not Found");
-    }
-  });
-});
+app.post("/login", function (req, res) {});
 
 app.listen(8000, function () {
   console.log("Server started at port 8000.");
