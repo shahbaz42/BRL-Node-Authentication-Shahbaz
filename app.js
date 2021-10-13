@@ -12,6 +12,8 @@ const findOrCreate = require("mongoose-findorcreate");
 // we don't neet to require passport-local
 
 const app = express();
+app.use(express.static("public"));
+app.set("view engine", "ejs");
 
 //configuring sessions
 app.use(
@@ -22,12 +24,9 @@ app.use(
   })
 );
 
-
 app.use(passport.initialize()); //initialising passport
 app.use(passport.session()); //making express use passport.sessions
 
-
-app.set("view engine", "ejs");
 const DB =
   "mongodb+srv://" +
   process.env.mongo_username +
@@ -35,7 +34,6 @@ const DB =
   process.env.mongo_password +
   "@cluster0.wggru.mongodb.net/users?retryWrites=true&w=majority";
 app.use(bodyParser.urlencoded({ extended: true }));
-
 
 //connecting mongodb atlas
 mongoose
@@ -45,13 +43,13 @@ mongoose
   })
   .catch((err) => console.log(err));
 
-
 // We need to update schema our schema cant be just a js object
 const userSchema = new mongoose.Schema({
   name: String,
   username: String,
   password: String,
   googleId: String,
+  secret: String,
 });
 
 userSchema.plugin(passportLocalMongoose); // will be used for salting hashing passwords
@@ -73,7 +71,7 @@ passport.use(
         {
           googleId: profile.id,
           username: profile.id,
-          name: profile.displayName
+          name: profile.displayName,
         },
         function (err, user) {
           return cb(err, user);
@@ -84,7 +82,6 @@ passport.use(
 );
 
 passport.use(User.createStrategy());
-
 
 //Below code is for putting info into cookie and for cracking open cookie to find info
 passport.serializeUser(function (user, done) {
@@ -98,12 +95,21 @@ passport.deserializeUser(function (id, done) {
 });
 
 
-//Routes
+//root route
+
 app.get("/", function (req, res) {
   if (req.isAuthenticated()) {
-    res.render("secrets");
+    res.render("secrets", {userSecret : req.user.secret});
   } else {
-    res.render("home");
+    User.find({"secret": {$ne: null}}, function(err, foundUsers){
+      if (err){
+        console.log(err);
+      } else {
+        if (foundUsers) {
+          res.render("home", {usersWithSecrets: foundUsers});
+        }
+      }
+    });
   }
 });
 
@@ -115,15 +121,49 @@ app.get("/register", function (req, res) {
   res.render("register");
 });
 
-app.get("/secrets", function (req, res) {
+
+
+// routes for handling secret submition when user is authenticated
+
+app.get("/submit", function (req, res) {
   if (req.isAuthenticated()) {
-    res.render("secrets");
+    res.render("submit");
   } else {
     res.redirect("/login");
   }
 });
 
-//handling register req made at /register
+app.post("/submit", function (req, res) {
+  if (req.isAuthenticated()) {
+    User.findById(req.user.id, function (err, found) {
+      if (err) {
+        console.log(err);
+      } else {
+        if (found) {
+          found.secret = req.body.secret;
+          found.save(function(){
+            res.redirect("/secrets");
+          })
+        }
+      }
+    });
+  } else {
+    res.redirect("/login");
+  }
+});
+
+app.get("/secrets", function(req, res){
+  if(req.isAuthenticated()){
+    res.render("secrets", {userSecret : req.user.secret});
+  }else{
+    res.redirect("/");
+  }
+});
+
+
+
+// routes for local register / login
+
 app.post("/register", function (req, res) {
   User.register(
     { username: req.body.username },
@@ -141,7 +181,6 @@ app.post("/register", function (req, res) {
   );
 });
 
-// Handling login request made at /login
 app.post("/login", function (req, res) {
   const user = new User({
     username: req.body.username,
@@ -159,15 +198,13 @@ app.post("/login", function (req, res) {
   });
 });
 
+
+//Routes for google login 
+
 app.get(
   "/auth/google",
   passport.authenticate("google", { scope: ["profile"] })
 );
-
-app.get("/logout", function (req, res) {
-  req.logout();
-  res.redirect("/");
-});
 
 app.get(
   "/auth/google/secrets",
@@ -176,6 +213,16 @@ app.get(
     res.redirect("/");
   }
 );
+
+
+
+//Logout
+
+app.get("/logout", function (req, res) {
+  req.logout();
+  res.redirect("/");
+});
+
 
 app.listen(8000, function () {
   console.log("Server started at port 8000.");
