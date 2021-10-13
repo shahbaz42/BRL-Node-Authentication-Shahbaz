@@ -11,16 +11,15 @@ const passportLocalMongoose = require("passport-local-mongoose");
 
 const app = express();
 
-app.use(
-  session({
-    //configuring sessions
+//configuring sessions
+app.use(session({
     secret: process.env.sessions_Secret,
     resave: false,
     saveUninitialized: false,
   })
 );
 
-app.use(passport.initialize); //initialising passport
+app.use(passport.initialize() ); //initialising passport
 app.use(passport.session()); //making express use passport.sessions
 
 app.set("view engine", "ejs");
@@ -55,7 +54,11 @@ passport.serializeUser(User.serializeUser()); //for putting info into cookie
 passport.deserializeUser(User.deserializeUser()); //for cracking open cookie to find info
 
 app.get("/", function (req, res) {
-  res.send("Monkey");
+  if (req.isAuthenticated()){
+    res.render("secrets");  
+  } else {
+    res.redirect("/login");
+  }
 });
 
 app.get("/login", function (req, res) {
@@ -66,12 +69,54 @@ app.get("/register", function (req, res) {
   res.render("register");
 });
 
+app.get("/secrets", function(req, res){
+  if (req.isAuthenticated()){
+    res.render("secrets");  
+  } else {
+    res.redirect("/login");
+  }
+});
+
 //handling register req made at /register
-app.post("/register", function (req, res) {});
+app.post("/register", function (req, res) {
+  User.register({username : req.body.username}, req.body.password, function(err,user){
+    if(err){
+      console.log(err)
+      res.redirect("/register");
+    } else {
+      passport.authenticate("local")(req, res, function(){
+        res.redirect("/secrets");
+      })
+    }
+  })
+
+});
 
 // Handling login request made at /login
-app.post("/login", function (req, res) {});
+app.post("/login", function (req, res) {
+  const user = new User({
+    username: req.body.username,
+    password: req.body.password
+  })
+
+  req.login(user, function(err){
+    if(err){
+      console.log(err);
+    } else {
+      passport.authenticate("local")(req, res, function(){
+        res.redirect("/secrets");
+      });
+    }
+  })
+
+});
+
+app.get("/logout", function(req,res){
+  req.logout();
+  res.redirect("/");
+})
 
 app.listen(8000, function () {
   console.log("Server started at port 8000.");
 });
+
