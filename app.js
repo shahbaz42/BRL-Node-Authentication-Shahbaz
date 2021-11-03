@@ -198,6 +198,20 @@ app.post("/login", function (req, res) {
   });
 });
 
+// Routes for password reset
+
+app.get("/forgot-password", function(req, res){
+  res.render("forgotPassword");
+});
+
+app.post("/forgot-password", function(req, res){
+
+});
+
+app.get("/reset-password/:userid/:token", function(req, res){
+  res.send(req.params);
+});
+
 
 //Routes for google login 
 
