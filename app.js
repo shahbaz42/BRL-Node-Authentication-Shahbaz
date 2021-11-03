@@ -9,6 +9,7 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const findOrCreate = require("mongoose-findorcreate");
+const jwt = require("jsonwebtoken");
 // we don't neet to require passport-local
 
 const app = express();
@@ -27,12 +28,15 @@ app.use(
 app.use(passport.initialize()); //initialising passport
 app.use(passport.session()); //making express use passport.sessions
 
-const DB =
-  "mongodb+srv://" +
-  process.env.mongo_username +
-  ":" +
-  process.env.mongo_password +
-  "@cluster0.wggru.mongodb.net/users?retryWrites=true&w=majority";
+// const DB =
+//   "mongodb+srv://" +
+//   process.env.mongo_username +
+//   ":" +
+//   process.env.mongo_password +
+//   "@cluster0.wggru.mongodb.net/users?retryWrites=true&w=majority";
+
+const DB = "mongodb://localhost:27017/secrets"
+
 app.use(bodyParser.urlencoded({ extended: true }));
 
 //connecting mongodb atlas
@@ -205,11 +209,32 @@ app.get("/forgot-password", function(req, res){
 });
 
 app.post("/forgot-password", function(req, res){
-
+  User.findOne({username : req.body.email}, function(err, found){
+    if(err){
+      console.log(err);
+      res.send("Some Error Occured.");
+    } else {
+      if(!found){
+        res.send("Email not Found.");
+      } else{
+        // When Email is present in our DB
+        const secret =  process.env.JWT_SECRET + found.id;
+        const payload = {
+          id : found._id,
+          email : found.username
+        }
+        const token = jwt.sign(payload, secret, {expiresIn: '15m'});
+        const link = "http://localhost:8000/reset-password/"+found._id +"/"+ token;
+        // To send over email
+        res.send("<a href="+link+">" + link +  "</a>");
+      }
+    }
+  })
 });
 
 app.get("/reset-password/:userid/:token", function(req, res){
-  res.send(req.params);
+
+  res.render("resetPassword");
 });
 
 
