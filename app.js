@@ -35,7 +35,7 @@ app.use(passport.session()); //making express use passport.sessions
 //   process.env.mongo_password +
 //   "@cluster0.wggru.mongodb.net/users?retryWrites=true&w=majority";
 
-const DB = "mongodb://localhost:27017/secrets"
+const DB = "mongodb://localhost:27017/secrets";
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -98,19 +98,18 @@ passport.deserializeUser(function (id, done) {
   });
 });
 
-
 //root route
 
 app.get("/", function (req, res) {
   if (req.isAuthenticated()) {
-    res.render("secrets", {userSecret : req.user.secret});
+    res.render("secrets", { userSecret: req.user.secret });
   } else {
-    User.find({"secret": {$ne: null}}, function(err, foundUsers){
-      if (err){
+    User.find({ secret: { $ne: null } }, function (err, foundUsers) {
+      if (err) {
         console.log(err);
       } else {
         if (foundUsers) {
-          res.render("home", {usersWithSecrets: foundUsers});
+          res.render("home", { usersWithSecrets: foundUsers });
         }
       }
     });
@@ -124,8 +123,6 @@ app.get("/login", function (req, res) {
 app.get("/register", function (req, res) {
   res.render("register");
 });
-
-
 
 // routes for handling secret submition when user is authenticated
 
@@ -145,9 +142,9 @@ app.post("/submit", function (req, res) {
       } else {
         if (found) {
           found.secret = req.body.secret;
-          found.save(function(){
+          found.save(function () {
             res.redirect("/secrets");
-          })
+          });
         }
       }
     });
@@ -156,15 +153,13 @@ app.post("/submit", function (req, res) {
   }
 });
 
-app.get("/secrets", function(req, res){
-  if(req.isAuthenticated()){
-    res.render("secrets", {userSecret : req.user.secret});
-  }else{
+app.get("/secrets", function (req, res) {
+  if (req.isAuthenticated()) {
+    res.render("secrets", { userSecret: req.user.secret });
+  } else {
     res.redirect("/");
   }
 });
-
-
 
 // routes for local register / login
 
@@ -204,41 +199,99 @@ app.post("/login", function (req, res) {
 
 // Routes for password reset
 
-app.get("/forgot-password", function(req, res){
+app.get("/forgot-password", function (req, res) {
   res.render("forgotPassword");
 });
 
-app.post("/forgot-password", function(req, res){
-  User.findOne({username : req.body.email}, function(err, found){
-    if(err){
+app.post("/forgot-password", function (req, res) {
+  User.findOne({ username: req.body.email }, function (err, found) {
+    if (err) {
       console.log(err);
       res.send("Some Error Occured.");
     } else {
-      if(!found){
+      if (!found) {
         res.send("Email not Found.");
-      } else{
+      } else {
         // When Email is present in our DB
-        const secret =  process.env.JWT_SECRET + found.id;
+        const secret = process.env.JWT_SECRET + found.id;
         const payload = {
-          id : found._id,
-          email : found.username
-        }
-        const token = jwt.sign(payload, secret, {expiresIn: '15m'});
-        const link = "http://localhost:8000/reset-password/"+found._id +"/"+ token;
+          id: found._id,
+          email: found.username,
+        };
+        const token = jwt.sign(payload, secret, { expiresIn: "15m" });
+        const link =
+          "http://localhost:8000/reset-password/" + found._id + "/" + token;
         // To send over email
-        res.send("<a href="+link+">" + link +  "</a>");
+        res.send("<a href=" + link + ">" + link + "</a>");
       }
     }
-  })
+  });
 });
 
-app.get("/reset-password/:userid/:token", function(req, res){
+app.get("/reset-password/:userId/:token", function (req, res) {
+  User.findById(req.params.userId, function (err, found) {
+    if (err) {
+      res.send("Something Went wrong :( ");
+    } else {
+      if (!found) {
+        res.send("Record Not found in DB.");
+      } else {
+        // user is found in our db.
+        const secret = process.env.JWT_SECRET + found.id;
 
-  res.render("resetPassword");
+        jwt.verify(req.params.token, secret, function (err, decoded) {
+          if (err) {
+            console.log(err);
+            res.send("Something went wrong in decoding token.");
+          } else {
+            if (!decoded) {
+              res.send("Token could not be verified");
+            } else {
+              res.render("resetPassword");
+            }
+          }
+        });
+      }
+    }
+  });
 });
 
+app.post("/reset-password/:userId/:token", function(req, res){
+  User.findById(req.params.userId, function (err, found) {
+    if (err) {
+      res.send("Something Went wrong :( ");
+    } else {
+      if (!found) {
+        res.send("Record Not found in DB.");
+      } else {
+        // user is found in our db.
+        const secret = process.env.JWT_SECRET + found.id;
 
-//Routes for google login 
+        jwt.verify(req.params.token, secret, function (err, decoded) {
+          if (err) {
+            console.log(err);
+            res.send("Something went wrong in decoding token.");
+          } else {
+            if (!decoded) {
+              res.send("Token could not be verified");
+            } else {
+              found.setPassword(req.body.password, function(err, user){
+                if(err){
+                  res.send(err)
+                }else{
+                  found.save();
+                  res.send("Password Successfully Reset");
+                }
+              });
+            }
+          }
+        });
+      }
+    }
+  });
+})
+
+//Routes for google login
 
 app.get(
   "/auth/google",
@@ -253,15 +306,12 @@ app.get(
   }
 );
 
-
-
 //Logout
 
 app.get("/logout", function (req, res) {
   req.logout();
   res.redirect("/");
 });
-
 
 app.listen(8000, function () {
   console.log("Server started at port 8000.");
