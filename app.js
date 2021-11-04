@@ -10,6 +10,8 @@ const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const findOrCreate = require("mongoose-findorcreate");
 const jwt = require("jsonwebtoken");
+
+const mail = require("./mail");
 // we don't neet to require passport-local
 
 const app = express();
@@ -221,8 +223,24 @@ app.post("/forgot-password", function (req, res) {
         const token = jwt.sign(payload, secret, { expiresIn: "15m" });
         const link =
           "http://localhost:8000/reset-password/" + found._id + "/" + token;
-        // To send over email
-        res.send("<a href=" + link + ">" + link + "</a>");
+
+        const html = '<H1>Reset your password by clicking the link below: </h1></br><a heref="' + link +'">' + link + "</a>";
+        const subject = "Reset Password";
+        const body = "Reset your password.";
+
+        mail.sendMail(
+          found.username,
+          subject,
+          body,
+          html,
+          function (err, result) {
+            if (err) {
+              res.send(err);
+            } else {
+              res.send(result);
+            }
+          }
+        );
       }
     }
   });
@@ -256,7 +274,7 @@ app.get("/reset-password/:userId/:token", function (req, res) {
   });
 });
 
-app.post("/reset-password/:userId/:token", function(req, res){
+app.post("/reset-password/:userId/:token", function (req, res) {
   User.findById(req.params.userId, function (err, found) {
     if (err) {
       res.send("Something Went wrong :( ");
@@ -275,10 +293,10 @@ app.post("/reset-password/:userId/:token", function(req, res){
             if (!decoded) {
               res.send("Token could not be verified");
             } else {
-              found.setPassword(req.body.password, function(err, user){
-                if(err){
-                  res.send(err)
-                }else{
+              found.setPassword(req.body.password, function (err, user) {
+                if (err) {
+                  res.send(err);
+                } else {
                   found.save();
                   res.send("Password Successfully Reset");
                 }
@@ -289,7 +307,7 @@ app.post("/reset-password/:userId/:token", function(req, res){
       }
     }
   });
-})
+});
 
 //Routes for google login
 
