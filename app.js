@@ -1,7 +1,6 @@
 //jshint esversion:6
 const express = require("express");
 const ejs = require("ejs");
-const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 require("dotenv").config(); // for using env variables
 const session = require("express-session");
@@ -10,7 +9,6 @@ const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const findOrCreate = require("mongoose-findorcreate");
 const jwt = require("jsonwebtoken");
-
 const mail = require("./mail");
 
 const app = express();
@@ -38,7 +36,7 @@ app.use(passport.session()); //making express use passport.sessions
 
 const DB = "mongodb://localhost:27017/secrets";
 
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
 //connecting mongodb atlas
 mongoose
