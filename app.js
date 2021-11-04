@@ -1,15 +1,13 @@
 //jshint esversion:6
 const express = require("express");
 const ejs = require("ejs");
-const mongoose = require("mongoose");
 require("dotenv").config(); // for using env variables
 const session = require("express-session");
 const passport = require("passport");
-const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const findOrCreate = require("mongoose-findorcreate");
 const jwt = require("jsonwebtoken");
 const mail = require("./mail");
+const User = require("./model");
 
 const app = express();
 app.use(express.static("public"));
@@ -26,39 +24,7 @@ app.use(
 
 app.use(passport.initialize()); //initialising passport
 app.use(passport.session()); //making express use passport.sessions
-
-// const DB =
-//   "mongodb+srv://" +
-//   process.env.mongo_username +
-//   ":" +
-//   process.env.mongo_password +
-//   "@cluster0.wggru.mongodb.net/users?retryWrites=true&w=majority";
-
-const DB = "mongodb://localhost:27017/secrets";
-
 app.use(express.urlencoded({ extended: true }));
-
-//connecting mongodb atlas
-mongoose
-  .connect(DB)
-  .then(() => {
-    console.log("Connection Sucessful");
-  })
-  .catch((err) => console.log(err));
-
-// We need to update schema our schema cant be just a js object
-const userSchema = new mongoose.Schema({
-  name: String,
-  username: String,
-  password: String,
-  googleId: String,
-  secret: String,
-});
-
-userSchema.plugin(passportLocalMongoose); // will be used for salting hashing passwords
-userSchema.plugin(findOrCreate);
-
-const User = new mongoose.model("User", userSchema);
 
 passport.use(
   new GoogleStrategy(
