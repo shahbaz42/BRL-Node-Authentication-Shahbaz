@@ -12,7 +12,6 @@ const findOrCreate = require("mongoose-findorcreate");
 const jwt = require("jsonwebtoken");
 
 const mail = require("./mail");
-// we don't neet to require passport-local
 
 const app = express();
 app.use(express.static("public"));
@@ -109,6 +108,7 @@ app.get("/", function (req, res) {
     User.find({ secret: { $ne: null } }, function (err, foundUsers) {
       if (err) {
         console.log(err);
+        res.render("error", { error: "Something went wrong", message: err });
       } else {
         if (foundUsers) {
           res.render("home", { usersWithSecrets: foundUsers });
@@ -141,6 +141,7 @@ app.post("/submit", function (req, res) {
     User.findById(req.user.id, function (err, found) {
       if (err) {
         console.log(err);
+        res.render("error", { error: "Something went wrong", message: err });
       } else {
         if (found) {
           found.secret = req.body.secret;
@@ -172,7 +173,7 @@ app.post("/register", function (req, res) {
     function (err, user) {
       if (err) {
         console.log(err);
-        res.redirect("/register");
+        res.render("error", { error: "Email already registered.", message: err });
       } else {
         passport.authenticate("local")(req, res, function () {
           res.redirect("/secrets");
@@ -209,10 +210,10 @@ app.post("/forgot-password", function (req, res) {
   User.findOne({ username: req.body.email }, function (err, found) {
     if (err) {
       console.log(err);
-      res.send("Some Error Occured.");
+      res.render("error", { error: "Something went wrong. ", message: err });
     } else {
       if (!found) {
-        res.send("Email not Found.");
+        res.render("error", { error: "Email not found", message: "You must register first." });
       } else {
         // When Email is present in our DB
         const secret = process.env.JWT_SECRET + found.id;
@@ -224,7 +225,12 @@ app.post("/forgot-password", function (req, res) {
         const link =
           "http://localhost:8000/reset-password/" + found._id + "/" + token;
 
-        const html = '<H1>Reset your password by clicking the link below: </h1></br><a heref="' + link +'">' + link + "</a>";
+        const html =
+          '<H1>Reset your password by clicking the link below: </h1></br><a heref="' +
+          link +
+          '">' +
+          link +
+          "</a>";
         const subject = "Reset Password";
         const body = "Reset your password.";
 
@@ -235,9 +241,9 @@ app.post("/forgot-password", function (req, res) {
           html,
           function (err, result) {
             if (err) {
-              res.send(err);
+              res.render("error", { error: "Unable to send mail.", message: err });
             } else {
-              res.send(result);
+              res.render("success", { error: "Email sent. ", message: "Please check your inbox." });
             }
           }
         );
@@ -249,10 +255,10 @@ app.post("/forgot-password", function (req, res) {
 app.get("/reset-password/:userId/:token", function (req, res) {
   User.findById(req.params.userId, function (err, found) {
     if (err) {
-      res.send("Something Went wrong :( ");
+      res.render("error", { error: "Something went wrong. ", message: err });
     } else {
       if (!found) {
-        res.send("Record Not found in DB.");
+        res.render("error", { error: "Record not found. ", message: "Try again" });
       } else {
         // user is found in our db.
         const secret = process.env.JWT_SECRET + found.id;
@@ -260,10 +266,10 @@ app.get("/reset-password/:userId/:token", function (req, res) {
         jwt.verify(req.params.token, secret, function (err, decoded) {
           if (err) {
             console.log(err);
-            res.send("Something went wrong in decoding token.");
+            res.render("error", { error: "Something went wrong in decoding token ", message: err });
           } else {
             if (!decoded) {
-              res.send("Token could not be verified");
+              res.render("error", { error: "Token could not be verified. ", message: err });
             } else {
               res.render("resetPassword");
             }
@@ -277,10 +283,10 @@ app.get("/reset-password/:userId/:token", function (req, res) {
 app.post("/reset-password/:userId/:token", function (req, res) {
   User.findById(req.params.userId, function (err, found) {
     if (err) {
-      res.send("Something Went wrong :( ");
+      res.render("error", { error: "Something went wrong. ", message: err });
     } else {
       if (!found) {
-        res.send("Record Not found in DB.");
+        res.render("error", { error: "Record not found. ", message: "Try again" });
       } else {
         // user is found in our db.
         const secret = process.env.JWT_SECRET + found.id;
@@ -288,17 +294,17 @@ app.post("/reset-password/:userId/:token", function (req, res) {
         jwt.verify(req.params.token, secret, function (err, decoded) {
           if (err) {
             console.log(err);
-            res.send("Something went wrong in decoding token.");
+            res.render("error", { error: "Something went wrong. ", message: err });
           } else {
             if (!decoded) {
-              res.send("Token could not be verified");
+              res.render("error", { error: "Token could not be verified. ", message: err });
             } else {
               found.setPassword(req.body.password, function (err, user) {
                 if (err) {
-                  res.send(err);
+                  res.render("error", { error: "Something went wrong. ", message: err });
                 } else {
                   found.save();
-                  res.send("Password Successfully Reset");
+                  res.render("success", { error: "Password successfully reset", message: "Log in again" });
                 }
               });
             }
