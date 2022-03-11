@@ -1,4 +1,4 @@
-# BRL-Node-Authentication-Shahbaz
+# Node-Authentication-Shahbaz
 ##Authentication using
   1. Google 
   2. Email
